@@ -6,14 +6,15 @@ use ggez::{
     input::mouse::MouseContext,
     timer, Context, ContextBuilder, GameError,
 };
+use rand::prelude::*;
 
 use grid::{Coord, Grid};
 use rand::{rngs::ThreadRng, seq::IteratorRandom, thread_rng};
 
 const GRID_HEIGHT: isize = 200;
-const GRID_WIDTH: isize = 200;
+const GRID_WIDTH: isize = 300;
 const CELL_SIZE: usize = 5;
-const DROPPER_SIZE: isize = 6;
+const DROPPER_SIZE: isize = 7;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
 
@@ -87,33 +88,41 @@ impl event::EventHandler<GameError> for State {
                 }
             }
 
-            for i in (0..self.grid.total_cells()).rev() {
-                let cell = self
-                    .grid
-                    .get_idx(i)
-                    .expect("iterating only through valid indices");
-                if cell.is_empty() {
-                    continue;
-                }
-
-                let coord = cell.coord;
-                if coord.is_at_bottom() {
-                    continue;
-                }
-
-                let bellow = coord
-                    .directly_bellow()
-                    .expect("already validated that it's not in the bottom row");
-                if self.grid.is_empty(&bellow) {
-                    self.grid.swap(&coord, &bellow);
+            for y in (0..self.grid.height).rev() {
+                let row_range = if self.rng.gen() {
+                    itertools::Either::Left(0..self.grid.width)
                 } else {
-                    let random_cell_bellow = coord
-                        .bellow()
-                        .filter(|c| c.p.is_lateral(&coord.p))
-                        .filter(|c| self.grid.is_empty(c))
-                        .choose(&mut self.rng);
-                    if let Some(other) = random_cell_bellow {
-                        self.grid.swap(&coord, &other)
+                    itertools::Either::Right((0..self.grid.width).rev())
+                };
+
+                for x in row_range {
+                    let cell = self
+                        .grid
+                        .get_point((x, y))
+                        .expect("iterating only through valid indices");
+                    if cell.is_empty() {
+                        continue;
+                    }
+
+                    let coord = cell.coord;
+                    if coord.is_at_bottom() {
+                        continue;
+                    }
+
+                    let bellow = coord
+                        .directly_bellow()
+                        .expect("already validated that it's not in the bottom row");
+                    if self.grid.is_empty(&bellow) {
+                        self.grid.swap(&coord, &bellow);
+                    } else {
+                        let random_cell_bellow = coord
+                            .bellow()
+                            .filter(|c| c.p.is_lateral(&coord.p))
+                            .filter(|c| self.grid.is_empty(c))
+                            .choose(&mut self.rng);
+                        if let Some(other) = random_cell_bellow {
+                            self.grid.swap(&coord, &other)
+                        }
                     }
                 }
             }
@@ -123,6 +132,9 @@ impl event::EventHandler<GameError> for State {
 
     fn draw(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
+
+        let text = graphics::Text::new(format!("{:.2}", ctx.time.fps()));
+        canvas.draw(&text, graphics::DrawParam::default());
 
         let mut mb = graphics::MeshBuilder::new();
         for cell in self.grid.iter().filter(|cell| !cell.is_empty()) {

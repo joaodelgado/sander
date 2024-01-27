@@ -115,8 +115,8 @@ impl<T> Cell<T> {
 #[derive(Debug, Clone)]
 pub struct Grid<T> {
     cells: Vec<Cell<T>>,
-    width: isize,
-    height: isize,
+    pub width: isize,
+    pub height: isize,
 }
 
 impl<T> Grid<T> {
@@ -144,6 +144,10 @@ impl<T> Grid<T> {
 
     pub fn get_idx(&self, idx: usize) -> Option<&Cell<T>> {
         self.cells.get(idx)
+    }
+
+    pub fn get_point(&self, p: impl Into<Point>) -> Option<&Cell<T>> {
+        Coord::new(p, self.width, self.height).map(|c| self.get(&c))
     }
 
     pub fn get(&self, coord: &Coord) -> &Cell<T> {
