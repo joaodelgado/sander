@@ -142,10 +142,6 @@ impl<T> Grid<T> {
         self.get(coord).is_empty()
     }
 
-    pub fn get_idx(&self, idx: usize) -> Option<&Cell<T>> {
-        self.cells.get(idx)
-    }
-
     pub fn get_point(&self, p: impl Into<Point>) -> Option<&Cell<T>> {
         Coord::new(p, self.width, self.height).map(|c| self.get(&c))
     }
@@ -172,10 +168,6 @@ impl<T> Grid<T> {
         // Can't take two mutable references of the cells array.
         // No sure is safe, but it seems to be what Vec::swap is doing
         unsafe { ptr::swap(a_value_ptr, b_value_ptr) };
-    }
-
-    pub fn total_cells(&self) -> usize {
-        (self.width * self.height) as usize
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Cell<T>> {

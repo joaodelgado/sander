@@ -1,4 +1,6 @@
 mod grid;
+mod particles;
+mod utils;
 
 use ggez::{
     conf, event,
@@ -6,6 +8,7 @@ use ggez::{
     input::mouse::MouseContext,
     timer, Context, ContextBuilder, GameError,
 };
+use particles::Particle;
 use rand::prelude::*;
 
 use grid::{Coord, Grid};
@@ -37,7 +40,7 @@ impl MouseExt for MouseContext {
 }
 
 struct State {
-    grid: Grid<()>,
+    grid: Grid<Particle>,
     mouse_down: bool,
     rng: ThreadRng,
 }
@@ -76,7 +79,7 @@ impl event::EventHandler<GameError> for State {
     }
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
-        while ctx.time.check_update_time(60) {
+        while ctx.time.check_update_time(TARGET_FPS) {
             if self.mouse_down {
                 for coord in ctx
                     .mouse
@@ -84,7 +87,7 @@ impl event::EventHandler<GameError> for State {
                     .iter()
                     .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
                 {
-                    self.grid.set(&coord, ());
+                    self.grid.set(&coord, Particle::new());
                 }
             }
 
@@ -137,17 +140,27 @@ impl event::EventHandler<GameError> for State {
         canvas.draw(&text, graphics::DrawParam::default());
 
         let mut mb = graphics::MeshBuilder::new();
-        for cell in self.grid.iter().filter(|cell| !cell.is_empty()) {
+        for (coord, particle) in self
+            .grid
+            .iter()
+            .filter(|cell| !cell.is_empty())
+            .map(|cell| {
+                (
+                    &cell.coord,
+                    cell.value.as_ref().expect("already validated as no empty"),
+                )
+            })
+        {
             mb.rectangle(
                 graphics::DrawMode::Fill(FillOptions::DEFAULT),
                 [
-                    cell.coord.p.x as f32 * CELL_SIZE as f32,
-                    cell.coord.p.y as f32 * CELL_SIZE as f32,
+                    coord.p.x as f32 * CELL_SIZE as f32,
+                    coord.p.y as f32 * CELL_SIZE as f32,
                     CELL_SIZE as f32,
                     CELL_SIZE as f32,
                 ]
                 .into(),
-                graphics::Color::WHITE,
+                *particle.color(),
             )?;
         }
         let grid_mesh = graphics::Mesh::from_data(ctx, mb.build());
