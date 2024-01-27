@@ -1,55 +1,98 @@
-use rand::prelude::*;
+use std::ptr;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Coord {
+pub struct Point {
     pub x: isize,
     pub y: isize,
 }
 
-impl Coord {
-    pub fn is_bellow(&self, other: &Coord) -> bool {
-        self.y > other.y
+impl Point {
+    fn in_bounds(&self, min_x: isize, max_x: isize, min_y: isize, max_y: isize) -> bool {
+        self.x >= min_x && self.x < max_x && self.y >= min_y && self.y < max_y
     }
 
-    pub fn is_lateral(&self, other: &Coord) -> bool {
+    fn distance(&self, other: &Point) -> f32 {
+        let diff_x = self.x - other.x;
+        let diff_y = self.y - other.y;
+        ((diff_x * diff_x + diff_y * diff_y) as f32).sqrt()
+    }
+
+    pub fn is_lateral(&self, other: &Point) -> bool {
         self.x != other.x
-    }
-
-    pub fn neighbors(&self) -> [Coord; 8] {
-        [
-            (self.x - 1, self.y - 1).into(),
-            (self.x, self.y - 1).into(),
-            (self.x + 1, self.y - 1).into(),
-            (self.x - 1, self.y).into(),
-            (self.x + 1, self.y).into(),
-            (self.x - 1, self.y + 1).into(),
-            (self.x, self.y + 1).into(),
-            (self.x + 1, self.y + 1).into(),
-        ]
-    }
-
-    pub fn directly_bellow(&self) -> Coord {
-        (self.x, self.y + 1).into()
-    }
-
-    pub fn expand_area(&self, radious: impl Into<isize>) -> Vec<Coord> {
-        let mut coords = Vec::new();
-        let radious = radious.into();
-        for j in (self.y - radious)..=(self.y + radious) {
-            for i in (self.x - radious)..=(self.x + radious) {
-                coords.push((i, j).into())
-            }
-        }
-        coords
     }
 }
 
-impl From<(isize, isize)> for Coord {
-    fn from(value: (isize, isize)) -> Self {
-        Coord {
-            x: value.0,
-            y: value.1,
+impl<T: Into<isize>> From<(T, T)> for Point {
+    fn from((x, y): (T, T)) -> Self {
+        Point {
+            x: x.into(),
+            y: y.into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Coord {
+    pub p: Point,
+    world_height: isize,
+    world_width: isize,
+}
+
+impl Coord {
+    pub fn new(p: impl Into<Point>, world_width: isize, world_height: isize) -> Option<Coord> {
+        let p = p.into();
+        if p.in_bounds(0, world_width, 0, world_height) {
+            Some(Coord {
+                p,
+                world_width,
+                world_height,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn move_by(&self, x: isize, y: isize) -> Option<Coord> {
+        self.move_to((self.p.x + x, self.p.y + y))
+    }
+
+    fn move_to(&self, p: impl Into<Point>) -> Option<Coord> {
+        Coord::new(p.into(), self.world_width, self.world_height)
+    }
+
+    fn cell_index(&self) -> usize {
+        (self.p.y * self.world_width + self.p.x) as usize
+    }
+
+    pub fn is_at_bottom(&self) -> bool {
+        self.p.y == self.world_height - 1
+    }
+
+    pub fn neighbors(&self, radious: impl Into<isize>) -> Vec<Coord> {
+        let radious = radious.into();
+        let mut neighbors = Vec::new();
+
+        for j in (self.p.y - radious)..=(self.p.y + radious) {
+            for i in (self.p.x - radious)..=(self.p.x + radious) {
+                let other = (i, j).into();
+                if ((self.p.distance(&other).round()) as isize) < radious {
+                    if let Some(neighbor) = self.move_to(other) {
+                        neighbors.push(neighbor);
+                    }
+                }
+            }
+        }
+        neighbors
+    }
+
+    pub fn directly_bellow(&self) -> Option<Coord> {
+        self.move_by(0, 1)
+    }
+
+    pub fn bellow(&self) -> impl Iterator<Item = Coord> {
+        [self.move_by(-1, 1), self.move_by(0, 1), self.move_by(1, 1)]
+            .into_iter()
+            .flatten()
     }
 }
 
@@ -64,16 +107,12 @@ impl<T> Cell<T> {
         Cell { value: None, coord }
     }
 
-    pub fn set(&mut self, value: T) {
-        self.value = Some(value);
-    }
-
     pub fn is_empty(&self) -> bool {
         self.value.is_none()
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Grid<T> {
     cells: Vec<Cell<T>>,
     width: isize,
@@ -85,7 +124,10 @@ impl<T> Grid<T> {
         let mut cells = Vec::with_capacity((width * height) as usize);
         for y in 0..height {
             for x in 0..width {
-                cells.push(Cell::empty((x, y).into()))
+                cells.push(Cell::empty(
+                    Coord::new((x, y), width, height)
+                        .expect("iterating through valid coordinates only"),
+                ))
             }
         }
 
@@ -96,51 +138,43 @@ impl<T> Grid<T> {
         }
     }
 
-    fn is_valid(&self, coord: &Coord) -> bool {
-        coord.x >= 0 && coord.x < self.width && coord.y >= 0 && coord.y < self.height
-    }
-
-    fn cell_index(&self, coord: &Coord) -> Option<usize> {
-        if self.is_valid(coord) {
-            Some((coord.y * self.width + coord.x) as usize)
-        } else {
-            None
-        }
-    }
-
     pub fn is_empty(&self, coord: &Coord) -> bool {
-        self.get(coord).map(|cell| cell.is_empty()).unwrap_or(false)
+        self.get(coord).is_empty()
     }
 
-    pub fn get(&self, coord: &Coord) -> Option<&Cell<T>> {
-        match self.cell_index(coord) {
-            Some(i) => Some(&self.cells[i]),
-            None => None,
-        }
+    pub fn get_idx(&self, idx: usize) -> Option<&Cell<T>> {
+        self.cells.get(idx)
     }
 
-    pub fn get_mut(&mut self, coord: &Coord) -> Option<&mut Cell<T>> {
-        match self.cell_index(coord) {
-            Some(i) => Some(&mut self.cells[i]),
-            None => None,
-        }
+    pub fn get(&self, coord: &Coord) -> &Cell<T> {
+        self.cells
+            .get(coord.cell_index())
+            .expect("coordinates are always valid")
     }
 
-    pub fn get_random_mut(&mut self, coord: &[Coord]) -> Option<&mut Cell<T>> {
-        coord
-            .iter()
-            .filter(|c| self.is_valid(c))
-            .choose(&mut thread_rng())
-            .and_then(|c| self.get_mut(c))
+    pub fn get_mut(&mut self, coord: &Coord) -> &mut Cell<T> {
+        self.cells
+            .get_mut(coord.cell_index())
+            .expect("coordinates are always valid")
     }
 
     pub fn set(&mut self, coord: &Coord, value: T) {
-        if let Some(cell) = self.get_mut(coord) {
-            cell.set(value)
-        }
+        self.get_mut(coord).value = Some(value);
     }
 
-    pub fn get_all(&self) -> impl Iterator<Item = &'_ Cell<T>> {
+    pub fn swap(&mut self, a: &Coord, b: &Coord) {
+        let a_value_ptr = ptr::addr_of_mut!(self.get_mut(a).value);
+        let b_value_ptr = ptr::addr_of_mut!(self.get_mut(b).value);
+        // Can't take two mutable references of the cells array.
+        // No sure is safe, but it seems to be what Vec::swap is doing
+        unsafe { ptr::swap(a_value_ptr, b_value_ptr) };
+    }
+
+    pub fn total_cells(&self) -> usize {
+        (self.width * self.height) as usize
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Cell<T>> {
         self.cells.iter()
     }
 }

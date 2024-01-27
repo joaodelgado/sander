@@ -8,48 +8,46 @@ use ggez::{
 };
 
 use grid::{Coord, Grid};
+use rand::{rngs::ThreadRng, seq::IteratorRandom, thread_rng};
 
-const WINDOW_HEIGHT: usize = 800;
-const WINDOW_WIDTH: usize = 1024;
+const GRID_HEIGHT: isize = 200;
+const GRID_WIDTH: isize = 200;
 const CELL_SIZE: usize = 5;
-const DROPPER_SIZE: isize = 5;
-const GRID_HEIGHT: isize = WINDOW_HEIGHT as isize / CELL_SIZE as isize;
-const GRID_WIDTH: isize = WINDOW_WIDTH as isize / CELL_SIZE as isize;
+const DROPPER_SIZE: isize = 6;
+const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
+const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
 
 trait MouseExt {
-    fn grid_position(&self) -> Coord;
+    fn grid_position(&self) -> Option<Coord>;
 }
 
 impl MouseExt for MouseContext {
-    fn grid_position(&self) -> Coord {
+    fn grid_position(&self) -> Option<Coord> {
         let p = self.position();
-
-        (
-            (p.x / CELL_SIZE as f32) as i32 as isize,
-            (p.y / CELL_SIZE as f32) as i32 as isize,
+        Coord::new(
+            (
+                (p.x / CELL_SIZE as f32) as i32 as isize,
+                (p.y / CELL_SIZE as f32) as i32 as isize,
+            ),
+            GRID_WIDTH,
+            GRID_HEIGHT,
         )
-            .into()
     }
 }
 
 struct State {
     grid: Grid<()>,
-    next_grid: Grid<()>,
     mouse_down: bool,
+    rng: ThreadRng,
 }
 
 impl State {
     fn new() -> State {
         State {
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
-            next_grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             mouse_down: false,
+            rng: thread_rng(),
         }
-    }
-
-    fn swap_grid(&mut self) {
-        self.grid = self.next_grid.clone();
-        self.next_grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
     }
 }
 
@@ -79,31 +77,46 @@ impl event::EventHandler<GameError> for State {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         while ctx.time.check_update_time(60) {
             if self.mouse_down {
-                for coord in ctx.mouse.grid_position().expand_area(DROPPER_SIZE) {
+                for coord in ctx
+                    .mouse
+                    .grid_position()
+                    .iter()
+                    .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
+                {
                     self.grid.set(&coord, ());
                 }
             }
 
-            for cell in self.grid.get_all().filter(|cell| !cell.is_empty()) {
-                let coord_bellow = cell.coord.directly_bellow();
-                if self.grid.is_empty(&coord_bellow) {
-                    self.next_grid.set(&coord_bellow, ());
+            for i in (0..self.grid.total_cells()).rev() {
+                let cell = self
+                    .grid
+                    .get_idx(i)
+                    .expect("iterating only through valid indices");
+                if cell.is_empty() {
+                    continue;
+                }
+
+                let coord = cell.coord;
+                if coord.is_at_bottom() {
+                    continue;
+                }
+
+                let bellow = coord
+                    .directly_bellow()
+                    .expect("already validated that it's not in the bottom row");
+                if self.grid.is_empty(&bellow) {
+                    self.grid.swap(&coord, &bellow);
                 } else {
-                    let next_candidates: Vec<_> = cell
-                        .coord
-                        .neighbors()
-                        .into_iter()
-                        .filter(|c| c.is_bellow(&cell.coord) && c.is_lateral(&cell.coord))
-                        .filter(|c| self.grid.is_empty(c) && self.next_grid.is_empty(c))
-                        .collect();
-                    if let Some(next) = self.next_grid.get_random_mut(&next_candidates) {
-                        next.set(());
-                    } else {
-                        self.next_grid.set(&cell.coord, ())
+                    let random_cell_bellow = coord
+                        .bellow()
+                        .filter(|c| c.p.is_lateral(&coord.p))
+                        .filter(|c| self.grid.is_empty(c))
+                        .choose(&mut self.rng);
+                    if let Some(other) = random_cell_bellow {
+                        self.grid.swap(&coord, &other)
                     }
                 }
             }
-            self.swap_grid();
         }
         Ok(())
     }
@@ -112,12 +125,12 @@ impl event::EventHandler<GameError> for State {
         let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
         let mut mb = graphics::MeshBuilder::new();
-        for cell in self.grid.get_all().filter(|cell| !cell.is_empty()) {
+        for cell in self.grid.iter().filter(|cell| !cell.is_empty()) {
             mb.rectangle(
                 graphics::DrawMode::Fill(FillOptions::DEFAULT),
                 [
-                    cell.coord.x as f32 * CELL_SIZE as f32,
-                    cell.coord.y as f32 * CELL_SIZE as f32,
+                    cell.coord.p.x as f32 * CELL_SIZE as f32,
+                    cell.coord.p.y as f32 * CELL_SIZE as f32,
                     CELL_SIZE as f32,
                     CELL_SIZE as f32,
                 ]
@@ -140,8 +153,8 @@ fn main() {
     let state = State::new();
 
     let c = conf::Conf::new().window_mode(conf::WindowMode {
-        width: WINDOW_WIDTH as f32,
-        height: WINDOW_HEIGHT as f32,
+        width: WINDOW_WIDTH,
+        height: WINDOW_HEIGHT,
         ..Default::default()
     });
     let (ctx, event_loop) = ContextBuilder::new("Sander", "joaomtdelgado@gmail.com")
