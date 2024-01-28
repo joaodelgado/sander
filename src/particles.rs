@@ -1,5 +1,4 @@
 use ggez::graphics::Color;
-use rand::prelude::*;
 
 use crate::{
     grid::{Coord, Grid},
@@ -32,13 +31,11 @@ impl Particle {
     }
 }
 
-pub struct Simulator {
-    rng: ThreadRng,
-}
+pub struct Simulator {}
 
 impl Simulator {
     pub fn new() -> Simulator {
-        Simulator { rng: thread_rng() }
+        Simulator {}
     }
 
     pub fn simulate(&mut self, grid: &mut Grid<Particle>, coord: &Coord) {
@@ -57,20 +54,12 @@ impl Simulator {
                     return;
                 }
 
-                let bellow = coord
-                    .directly_bellow()
-                    .expect("already validated that it's not in the bottom row");
-                if grid.is_empty(&bellow) {
-                    grid.swap(coord, &bellow);
-                } else {
-                    let random_cell_bellow = coord
-                        .bellow()
-                        .filter(|c| c.p.is_lateral(&coord.p))
-                        .filter(|c| grid.is_empty(c))
-                        .choose(&mut self.rng);
-                    if let Some(other) = random_cell_bellow {
-                        grid.swap(coord, &other)
-                    }
+                if let Some(other) = coord.move_by(0, 1).filter(|c| grid.is_empty(c)) {
+                    grid.swap(coord, &other);
+                } else if let Some(other) = coord.move_by(-1, 1).filter(|c| grid.is_empty(c)) {
+                    grid.swap(coord, &other);
+                } else if let Some(other) = coord.move_by(1, 1).filter(|c| grid.is_empty(c)) {
+                    grid.swap(coord, &other);
                 }
             }
         }

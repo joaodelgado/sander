@@ -14,10 +14,10 @@ use rand::prelude::*;
 use grid::{Coord, Grid};
 use rand::{rngs::ThreadRng, thread_rng};
 
-const GRID_HEIGHT: isize = 200;
-const GRID_WIDTH: isize = 300;
-const CELL_SIZE: usize = 5;
-const DROPPER_SIZE: isize = 7;
+const GRID_HEIGHT: isize = 100;
+const GRID_WIDTH: isize = 100;
+const CELL_SIZE: usize = 8;
+const DROPPER_SIZE: isize = 2;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
 const TARGET_FPS: u32 = 60;

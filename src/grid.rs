@@ -16,10 +16,6 @@ impl Point {
         let diff_y = self.y - other.y;
         ((diff_x * diff_x + diff_y * diff_y) as f32).sqrt()
     }
-
-    pub fn is_lateral(&self, other: &Point) -> bool {
-        self.x != other.x
-    }
 }
 
 impl<T: Into<isize>> From<(T, T)> for Point {
@@ -52,7 +48,7 @@ impl Coord {
         }
     }
 
-    fn move_by(&self, x: isize, y: isize) -> Option<Coord> {
+    pub fn move_by(&self, x: isize, y: isize) -> Option<Coord> {
         self.move_to((self.p.x + x, self.p.y + y))
     }
 
@@ -83,16 +79,6 @@ impl Coord {
             }
         }
         neighbors
-    }
-
-    pub fn directly_bellow(&self) -> Option<Coord> {
-        self.move_by(0, 1)
-    }
-
-    pub fn bellow(&self) -> impl Iterator<Item = Coord> {
-        [self.move_by(-1, 1), self.move_by(0, 1), self.move_by(1, 1)]
-            .into_iter()
-            .flatten()
     }
 }
 
