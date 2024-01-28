@@ -142,8 +142,8 @@ impl<T> Grid<T> {
         self.get(coord).is_empty()
     }
 
-    pub fn get_point(&self, p: impl Into<Point>) -> Option<&Cell<T>> {
-        Coord::new(p, self.width, self.height).map(|c| self.get(&c))
+    pub fn to_coord(&self, p: impl Into<Point>) -> Option<Coord> {
+        Coord::new(p, self.width, self.height)
     }
 
     pub fn get(&self, coord: &Coord) -> &Cell<T> {

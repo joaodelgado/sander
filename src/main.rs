@@ -8,11 +8,11 @@ use ggez::{
     input::mouse::MouseContext,
     timer, Context, ContextBuilder, GameError,
 };
-use particles::Particle;
+use particles::{Particle, ParticleKind, Simulator};
 use rand::prelude::*;
 
 use grid::{Coord, Grid};
-use rand::{rngs::ThreadRng, seq::IteratorRandom, thread_rng};
+use rand::{rngs::ThreadRng, thread_rng};
 
 const GRID_HEIGHT: isize = 200;
 const GRID_WIDTH: isize = 300;
@@ -20,6 +20,7 @@ const CELL_SIZE: usize = 5;
 const DROPPER_SIZE: isize = 7;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
+const TARGET_FPS: u32 = 60;
 
 trait MouseExt {
     fn grid_position(&self) -> Option<Coord>;
@@ -41,6 +42,7 @@ impl MouseExt for MouseContext {
 
 struct State {
     grid: Grid<Particle>,
+    simulator: Simulator,
     mouse_down: bool,
     rng: ThreadRng,
 }
@@ -49,6 +51,7 @@ impl State {
     fn new() -> State {
         State {
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
+            simulator: Simulator::new(),
             mouse_down: false,
             rng: thread_rng(),
         }
@@ -87,7 +90,7 @@ impl event::EventHandler<GameError> for State {
                     .iter()
                     .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
                 {
-                    self.grid.set(&coord, Particle::new());
+                    self.grid.set(&coord, Particle::new(ParticleKind::Sand));
                 }
             }
 
@@ -99,33 +102,8 @@ impl event::EventHandler<GameError> for State {
                 };
 
                 for x in row_range {
-                    let cell = self
-                        .grid
-                        .get_point((x, y))
-                        .expect("iterating only through valid indices");
-                    if cell.is_empty() {
-                        continue;
-                    }
-
-                    let coord = cell.coord;
-                    if coord.is_at_bottom() {
-                        continue;
-                    }
-
-                    let bellow = coord
-                        .directly_bellow()
-                        .expect("already validated that it's not in the bottom row");
-                    if self.grid.is_empty(&bellow) {
-                        self.grid.swap(&coord, &bellow);
-                    } else {
-                        let random_cell_bellow = coord
-                            .bellow()
-                            .filter(|c| c.p.is_lateral(&coord.p))
-                            .filter(|c| self.grid.is_empty(c))
-                            .choose(&mut self.rng);
-                        if let Some(other) = random_cell_bellow {
-                            self.grid.swap(&coord, &other)
-                        }
+                    if let Some(coord) = self.grid.to_coord((x, y)) {
+                        self.simulator.simulate(&mut self.grid, &coord);
                     }
                 }
             }
@@ -160,7 +138,7 @@ impl event::EventHandler<GameError> for State {
                     CELL_SIZE as f32,
                 ]
                 .into(),
-                *particle.color(),
+                particle.color,
             )?;
         }
         let grid_mesh = graphics::Mesh::from_data(ctx, mb.build());
