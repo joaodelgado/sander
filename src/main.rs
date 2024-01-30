@@ -117,6 +117,8 @@ impl event::EventHandler<GameError> for State {
                 }
             }
 
+            self.simulator.init(&mut self.grid);
+
             for y in (0..self.grid.height).rev() {
                 let row_range = if self.rng.gen() {
                     itertools::Either::Left(0..self.grid.width)

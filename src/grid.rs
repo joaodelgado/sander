@@ -1,3 +1,4 @@
+use rand::prelude::*;
 use std::ptr;
 
 #[derive(Debug, Clone, Copy)]
@@ -62,6 +63,16 @@ impl Coord {
 
     pub fn is_at_bottom(&self) -> bool {
         self.p.y == self.world_height - 1
+    }
+
+    pub fn random_neighbors(
+        &self,
+        mut motions: Vec<(isize, isize)>,
+    ) -> impl Iterator<Item = Coord> + '_ {
+        motions.shuffle(&mut thread_rng());
+        motions
+            .into_iter()
+            .filter_map(move |(x, y)| self.move_by(x, y))
     }
 
     pub fn neighbors(&self, radious: impl Into<isize>) -> Vec<Coord> {
@@ -158,6 +169,10 @@ impl<T> Grid<T> {
         // Can't take two mutable references of the cells array.
         // No sure is safe, but it seems to be what Vec::swap is doing
         unsafe { ptr::swap(a_value_ptr, b_value_ptr) };
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Cell<T>> {
+        self.cells.iter_mut()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Cell<T>> {

@@ -1,7 +1,7 @@
 use ggez::graphics::Color;
 
 use crate::{
-    grid::{Coord, Grid},
+    grid::{Cell, Coord, Grid},
     utils::vary_color,
 };
 
@@ -24,6 +24,7 @@ impl ParticleKind {
 
 pub struct Particle {
     pub color: Color,
+    ticked: bool,
     kind: ParticleKind,
 }
 
@@ -31,7 +32,25 @@ impl Particle {
     pub fn new(kind: ParticleKind) -> Particle {
         Particle {
             color: kind.generate_color(),
+            ticked: false,
             kind,
+        }
+    }
+}
+
+trait ParticleCell {
+    fn is_solid(&self) -> bool;
+}
+
+impl ParticleCell for Cell<Particle> {
+    fn is_solid(&self) -> bool {
+        if let Some(particle) = &self.value {
+            match particle.kind {
+                ParticleKind::Sand | ParticleKind::Wood => true,
+                ParticleKind::Water => false,
+            }
+        } else {
+            false
         }
     }
 }
@@ -43,14 +62,7 @@ trait ParticleGrid {
 impl ParticleGrid for Grid<Particle> {
     fn is_solid(&self, coord: &Coord) -> bool {
         let cell = self.get(coord);
-        if let Some(particle) = &cell.value {
-            match particle.kind {
-                ParticleKind::Sand | ParticleKind::Wood => true,
-                ParticleKind::Water => false,
-            }
-        } else {
-            false
-        }
+        cell.is_solid()
     }
 }
 
@@ -59,6 +71,12 @@ pub struct Simulator {}
 impl Simulator {
     pub fn new() -> Simulator {
         Simulator {}
+    }
+
+    pub fn init(&mut self, grid: &mut Grid<Particle>) {
+        grid.iter_mut()
+            .filter_map(|cell| cell.value.as_mut())
+            .for_each(|particle| particle.ticked = false);
     }
 
     pub fn simulate(&mut self, grid: &mut Grid<Particle>, coord: &Coord) {
@@ -71,6 +89,11 @@ impl Simulator {
             .as_mut()
             .expect("already checked that cell is not empty");
 
+        if particle.ticked {
+            return;
+        }
+        particle.ticked = true;
+
         match particle.kind {
             ParticleKind::Sand => {
                 if coord.is_at_bottom() {
@@ -79,9 +102,13 @@ impl Simulator {
 
                 if let Some(other) = coord.move_by(0, 1).filter(|c| !grid.is_solid(c)) {
                     grid.swap(coord, &other);
-                } else if let Some(other) = coord.move_by(-1, 1).filter(|c| !grid.is_solid(c)) {
-                    grid.swap(coord, &other);
-                } else if let Some(other) = coord.move_by(1, 1).filter(|c| !grid.is_solid(c)) {
+                    return;
+                }
+
+                if let Some(other) = coord
+                    .random_neighbors(vec![(-1, 1), (1, 1)])
+                    .find(|c| !grid.get(c).is_solid())
+                {
                     grid.swap(coord, &other);
                 }
             }
@@ -92,9 +119,12 @@ impl Simulator {
 
                 if let Some(other) = coord.move_by(0, 1).filter(|c| grid.is_empty(c)) {
                     grid.swap(coord, &other);
-                } else if let Some(other) = coord.move_by(-1, 0).filter(|c| grid.is_empty(c)) {
-                    grid.swap(coord, &other);
-                } else if let Some(other) = coord.move_by(1, 0).filter(|c| grid.is_empty(c)) {
+                    return;
+                }
+                if let Some(other) = coord
+                    .random_neighbors(vec![(-1, 0), (1, 0)])
+                    .find(|c| grid.get(c).is_empty())
+                {
                     grid.swap(coord, &other);
                 }
             }
