@@ -144,6 +144,10 @@ impl<T> Grid<T> {
             .expect("coordinates are always valid")
     }
 
+    pub fn clear(&mut self, coord: &Coord) {
+        self.get_mut(coord).value = None;
+    }
+
     pub fn set(&mut self, coord: &Coord, value: T) {
         self.get_mut(coord).value = Some(value);
     }

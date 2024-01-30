@@ -46,7 +46,7 @@ struct State {
     grid: Grid<Particle>,
     simulator: Simulator,
     mouse_down: bool,
-    selected_particle_kind: ParticleKind,
+    selected_particle_kind: Option<ParticleKind>,
     rng: ThreadRng,
 }
 
@@ -56,7 +56,7 @@ impl State {
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             simulator: Simulator::new(),
             mouse_down: false,
-            selected_particle_kind: ParticleKind::Sand,
+            selected_particle_kind: Some(ParticleKind::Sand),
             rng: thread_rng(),
         }
     }
@@ -70,15 +70,10 @@ impl event::EventHandler<GameError> for State {
         _repeated: bool,
     ) -> Result<(), GameError> {
         match input.keycode {
-            Some(VirtualKeyCode::S) => {
-                self.selected_particle_kind = ParticleKind::Sand;
-            }
-            Some(VirtualKeyCode::W) => {
-                self.selected_particle_kind = ParticleKind::Wood;
-            }
-            Some(VirtualKeyCode::D) => {
-                self.selected_particle_kind = ParticleKind::Water;
-            }
+            Some(VirtualKeyCode::S) => self.selected_particle_kind = Some(ParticleKind::Sand),
+            Some(VirtualKeyCode::W) => self.selected_particle_kind = Some(ParticleKind::Wood),
+            Some(VirtualKeyCode::D) => self.selected_particle_kind = Some(ParticleKind::Water),
+            Some(VirtualKeyCode::E) => self.selected_particle_kind = None,
             _ => (),
         }
         Ok(())
@@ -115,8 +110,10 @@ impl event::EventHandler<GameError> for State {
                     .iter()
                     .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
                 {
-                    self.grid
-                        .set(&coord, Particle::new(self.selected_particle_kind));
+                    match self.selected_particle_kind {
+                        Some(kind) => self.grid.set(&coord, Particle::new(kind)),
+                        None => self.grid.clear(&coord),
+                    }
                 }
             }
 
