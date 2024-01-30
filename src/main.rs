@@ -6,7 +6,9 @@ use ggez::{
     conf, event,
     graphics::{self, FillOptions},
     input::mouse::MouseContext,
-    timer, Context, ContextBuilder, GameError,
+    timer,
+    winit::event::VirtualKeyCode,
+    Context, ContextBuilder, GameError,
 };
 use particles::{Particle, ParticleKind, Simulator};
 use rand::prelude::*;
@@ -14,9 +16,9 @@ use rand::prelude::*;
 use grid::{Coord, Grid};
 use rand::{rngs::ThreadRng, thread_rng};
 
-const GRID_HEIGHT: isize = 100;
-const GRID_WIDTH: isize = 100;
-const CELL_SIZE: usize = 8;
+const GRID_HEIGHT: isize = 200;
+const GRID_WIDTH: isize = 200;
+const CELL_SIZE: usize = 5;
 const DROPPER_SIZE: isize = 2;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
@@ -44,6 +46,7 @@ struct State {
     grid: Grid<Particle>,
     simulator: Simulator,
     mouse_down: bool,
+    selected_particle_kind: ParticleKind,
     rng: ThreadRng,
 }
 
@@ -53,12 +56,31 @@ impl State {
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             simulator: Simulator::new(),
             mouse_down: false,
+            selected_particle_kind: ParticleKind::Sand,
             rng: thread_rng(),
         }
     }
 }
 
 impl event::EventHandler<GameError> for State {
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        input: ggez::input::keyboard::KeyInput,
+        _repeated: bool,
+    ) -> Result<(), GameError> {
+        match input.keycode {
+            Some(VirtualKeyCode::S) => {
+                self.selected_particle_kind = ParticleKind::Sand;
+            }
+            Some(VirtualKeyCode::W) => {
+                self.selected_particle_kind = ParticleKind::Wood;
+            }
+            _ => (),
+        }
+        Ok(())
+    }
+
     fn mouse_button_down_event(
         &mut self,
         _ctx: &mut Context,
@@ -90,7 +112,8 @@ impl event::EventHandler<GameError> for State {
                     .iter()
                     .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
                 {
-                    self.grid.set(&coord, Particle::new(ParticleKind::Sand));
+                    self.grid
+                        .set(&coord, Particle::new(self.selected_particle_kind));
                 }
             }
 

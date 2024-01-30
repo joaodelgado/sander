@@ -5,14 +5,17 @@ use crate::{
     utils::vary_color,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub enum ParticleKind {
     Sand,
+    Wood,
 }
 
 impl ParticleKind {
     fn generate_color(&self) -> Color {
         match self {
             ParticleKind::Sand => vary_color(Color::YELLOW),
+            ParticleKind::Wood => vary_color(Color::from_rgb(112, 74, 2)),
         }
     }
 }
@@ -61,6 +64,9 @@ impl Simulator {
                 } else if let Some(other) = coord.move_by(1, 1).filter(|c| grid.is_empty(c)) {
                     grid.swap(coord, &other);
                 }
+            }
+            ParticleKind::Wood => {
+                // Do nothing
             }
         }
     }
