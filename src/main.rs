@@ -76,6 +76,9 @@ impl event::EventHandler<GameError> for State {
             Some(VirtualKeyCode::W) => {
                 self.selected_particle_kind = ParticleKind::Wood;
             }
+            Some(VirtualKeyCode::D) => {
+                self.selected_particle_kind = ParticleKind::Water;
+            }
             _ => (),
         }
         Ok(())
