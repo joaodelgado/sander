@@ -122,6 +122,12 @@ impl Simulator {
                     return;
                 }
                 if let Some(other) = coord
+                    .random_neighbors(vec![(-1, 1), (1, 1)])
+                    .find(|c| grid.get(c).is_empty())
+                {
+                    grid.swap(coord, &other);
+                }
+                if let Some(other) = coord
                     .random_neighbors(vec![(-1, 0), (1, 0)])
                     .find(|c| grid.get(c).is_empty())
                 {
