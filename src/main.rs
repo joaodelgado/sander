@@ -2,9 +2,10 @@ mod grid;
 mod particles;
 mod utils;
 
+use ggegui::{egui, Gui};
 use ggez::{
-    conf, event,
-    graphics::{self, FillOptions},
+    conf, event, glam,
+    graphics::{self, DrawParam, FillOptions},
     input::mouse::MouseContext,
     timer,
     winit::event::VirtualKeyCode,
@@ -43,6 +44,7 @@ impl MouseExt for MouseContext {
 }
 
 struct State {
+    gui: Gui,
     grid: Grid<Particle>,
     simulator: Simulator,
     mouse_down: bool,
@@ -51,14 +53,30 @@ struct State {
 }
 
 impl State {
-    fn new() -> State {
+    fn new(ctx: &mut Context) -> State {
         State {
+            gui: Gui::new(ctx),
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             simulator: Simulator::new(),
             mouse_down: false,
             selected_particle_kind: Some(ParticleKind::Sand),
             rng: thread_rng(),
         }
+    }
+
+    fn update_ui(&mut self, ctx: &mut Context) -> Result<bool, GameError> {
+        let gui_ctx = self.gui.ctx();
+        egui::Window::new("Title").show(&gui_ctx, |ui| {
+            ui.label("label");
+            if ui.button("print \"hello world\"").clicked() {
+                println!("hello world");
+            }
+            if ui.button("quit").clicked() {
+                ctx.request_quit();
+            }
+        });
+        self.gui.update(ctx);
+        Ok(gui_ctx.wants_pointer_input())
     }
 }
 
@@ -102,8 +120,9 @@ impl event::EventHandler<GameError> for State {
     }
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
+        let mouse_on_ui = self.update_ui(ctx)?;
         while ctx.time.check_update_time(TARGET_FPS) {
-            if self.mouse_down {
+            if self.mouse_down && !mouse_on_ui {
                 for coord in ctx
                     .mouse
                     .grid_position()
@@ -170,6 +189,9 @@ impl event::EventHandler<GameError> for State {
 
         canvas.draw(&grid_mesh, graphics::DrawParam::default());
 
+        // Draw UI
+        canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::ZERO));
+
         canvas.finish(ctx)?;
 
         timer::yield_now();
@@ -178,17 +200,17 @@ impl event::EventHandler<GameError> for State {
 }
 
 fn main() {
-    let state = State::new();
-
     let c = conf::Conf::new().window_mode(conf::WindowMode {
         width: WINDOW_WIDTH,
         height: WINDOW_HEIGHT,
         ..Default::default()
     });
-    let (ctx, event_loop) = ContextBuilder::new("Sander", "joaomtdelgado@gmail.com")
+    let (mut ctx, event_loop) = ContextBuilder::new("Sander", "joaomtdelgado@gmail.com")
         .default_conf(c)
         .build()
         .expect("error building ggez context");
+
+    let state = State::new(&mut ctx);
 
     event::run(ctx, event_loop, state);
 }
