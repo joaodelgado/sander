@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 colors-transform = "0.2.11"
-ggegui = "0.3.8"
+ggegui = { git = "https://github.com/NemuiSen/ggegui.git" }
 ggez = "0.9.3"
 itertools = "0.12.0"
 rand = "0.8.5"

@@ -2,7 +2,10 @@ mod grid;
 mod particles;
 mod utils;
 
-use ggegui::{egui, Gui};
+use ggegui::{
+    egui::{self, Button},
+    Gui,
+};
 use ggez::{
     conf, event, glam,
     graphics::{self, DrawParam, FillOptions},
@@ -23,7 +26,7 @@ const CELL_SIZE: usize = 5;
 const DROPPER_SIZE: isize = 2;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
-const TARGET_FPS: u32 = 60;
+const TARGET_FPS: u32 = 120;
 
 trait MouseExt {
     fn grid_position(&self) -> Option<Coord>;
@@ -66,11 +69,41 @@ impl State {
 
     fn update_ui(&mut self, ctx: &mut Context) -> Result<bool, GameError> {
         let gui_ctx = self.gui.ctx();
-        egui::Window::new("Title").show(&gui_ctx, |ui| {
-            ui.label("label");
-            if ui.button("print \"hello world\"").clicked() {
-                println!("hello world");
+        egui::Window::new("Menu").show(&gui_ctx, |ui| {
+            if ui
+                .add(Button::new("Empty").selected(self.selected_particle_kind.is_none()))
+                .clicked()
+            {
+                self.selected_particle_kind = None;
             }
+            if ui
+                .add(
+                    Button::new("Sand")
+                        .selected(self.selected_particle_kind == Some(ParticleKind::Sand)),
+                )
+                .clicked()
+            {
+                self.selected_particle_kind = Some(ParticleKind::Sand);
+            }
+            if ui
+                .add(
+                    Button::new("Wood")
+                        .selected(self.selected_particle_kind == Some(ParticleKind::Wood)),
+                )
+                .clicked()
+            {
+                self.selected_particle_kind = Some(ParticleKind::Wood);
+            }
+            if ui
+                .add(
+                    Button::new("Water")
+                        .selected(self.selected_particle_kind == Some(ParticleKind::Water)),
+                )
+                .clicked()
+            {
+                self.selected_particle_kind = Some(ParticleKind::Water);
+            }
+
             if ui.button("quit").clicked() {
                 ctx.request_quit();
             }

@@ -5,7 +5,7 @@ use crate::{
     utils::vary_color,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParticleKind {
     Sand,
     Water,
