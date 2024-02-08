@@ -3,7 +3,7 @@ mod particles;
 mod utils;
 
 use ggegui::{
-    egui::{self, Button},
+    egui::{self, Button, Slider},
     Gui,
 };
 use ggez::{
@@ -23,7 +23,6 @@ use rand::{rngs::ThreadRng, thread_rng};
 const GRID_HEIGHT: isize = 200;
 const GRID_WIDTH: isize = 200;
 const CELL_SIZE: usize = 5;
-const DROPPER_SIZE: isize = 2;
 const WINDOW_HEIGHT: f32 = GRID_HEIGHT as f32 * CELL_SIZE as f32;
 const WINDOW_WIDTH: f32 = GRID_WIDTH as f32 * CELL_SIZE as f32;
 const TARGET_FPS: u32 = 120;
@@ -51,7 +50,10 @@ struct State {
     grid: Grid<Particle>,
     simulator: Simulator,
     mouse_down: bool,
+    dropper_size: isize,
     selected_particle_kind: Option<ParticleKind>,
+    mouse_on_ui: bool,
+    keyboard_on_ui: bool,
     rng: ThreadRng,
 }
 
@@ -62,14 +64,19 @@ impl State {
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             simulator: Simulator::new(),
             mouse_down: false,
+            dropper_size: 5,
             selected_particle_kind: Some(ParticleKind::Sand),
+            mouse_on_ui: false,
+            keyboard_on_ui: false,
             rng: thread_rng(),
         }
     }
 
-    fn update_ui(&mut self, ctx: &mut Context) -> Result<bool, GameError> {
+    fn update_ui(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         let gui_ctx = self.gui.ctx();
         egui::Window::new("Menu").show(&gui_ctx, |ui| {
+            ui.add(Slider::new(&mut self.dropper_size, 1..=20).text("Dropper size"));
+
             if ui
                 .add(Button::new("Empty").selected(self.selected_particle_kind.is_none()))
                 .clicked()
@@ -108,8 +115,11 @@ impl State {
                 ctx.request_quit();
             }
         });
-        self.gui.update(ctx);
-        Ok(gui_ctx.wants_pointer_input())
+
+        self.mouse_on_ui = gui_ctx.wants_pointer_input();
+        self.keyboard_on_ui = gui_ctx.wants_keyboard_input();
+
+        Ok(())
     }
 }
 
@@ -120,6 +130,10 @@ impl event::EventHandler<GameError> for State {
         input: ggez::input::keyboard::KeyInput,
         _repeated: bool,
     ) -> Result<(), GameError> {
+        if self.keyboard_on_ui {
+            return Ok(());
+        }
+
         match input.keycode {
             Some(VirtualKeyCode::S) => self.selected_particle_kind = Some(ParticleKind::Sand),
             Some(VirtualKeyCode::W) => self.selected_particle_kind = Some(ParticleKind::Wood),
@@ -127,6 +141,7 @@ impl event::EventHandler<GameError> for State {
             Some(VirtualKeyCode::E) => self.selected_particle_kind = None,
             _ => (),
         }
+
         Ok(())
     }
 
@@ -153,14 +168,14 @@ impl event::EventHandler<GameError> for State {
     }
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
-        let mouse_on_ui = self.update_ui(ctx)?;
+        self.update_ui(ctx)?;
         while ctx.time.check_update_time(TARGET_FPS) {
-            if self.mouse_down && !mouse_on_ui {
+            if self.mouse_down && !self.mouse_on_ui {
                 for coord in ctx
                     .mouse
                     .grid_position()
                     .iter()
-                    .flat_map(|c| c.neighbors(DROPPER_SIZE).into_iter())
+                    .flat_map(|c| c.neighbors(self.dropper_size).into_iter())
                 {
                     match self.selected_particle_kind {
                         Some(kind) => self.grid.set(&coord, Particle::new(kind)),
@@ -185,6 +200,7 @@ impl event::EventHandler<GameError> for State {
                 }
             }
         }
+        self.gui.update(ctx);
         Ok(())
     }
 
