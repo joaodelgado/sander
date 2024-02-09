@@ -28,8 +28,8 @@ impl ParticleKind {
 
 pub struct Particle {
     pub color: Color,
+    pub kind: ParticleKind,
     ticked: bool,
-    kind: ParticleKind,
 }
 
 impl Particle {

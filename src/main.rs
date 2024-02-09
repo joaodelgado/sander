@@ -119,6 +119,45 @@ impl State {
 
         Ok(())
     }
+
+    fn update_mouse_down(&mut self, ctx: &mut Context) -> Result<(), GameError> {
+        if ctx.mouse.button_pressed(event::MouseButton::Left) {
+            for coord in ctx
+                .mouse
+                .grid_position()
+                .iter()
+                .flat_map(|c| c.neighbors(self.dropper_size).into_iter())
+            {
+                match self.selected_particle_kind {
+                    Some(kind) => self.grid.set(&coord, Particle::new(kind)),
+                    None => self.grid.clear(&coord),
+                }
+            }
+        } else if ctx.mouse.button_pressed(event::MouseButton::Right) {
+            if let Some(selected_particle_kind) = self.selected_particle_kind {
+                for coord in ctx
+                    .mouse
+                    .grid_position()
+                    .iter()
+                    .flat_map(|c| c.neighbors(self.dropper_size).into_iter())
+                {
+                    if self
+                        .grid
+                        .get(&coord)
+                        .value
+                        .as_ref()
+                        .map(|particle| particle.kind)
+                        .filter(|kind| kind == &selected_particle_kind)
+                        .is_some()
+                    {
+                        self.grid.clear(&coord);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl event::EventHandler<GameError> for State {
@@ -147,18 +186,8 @@ impl event::EventHandler<GameError> for State {
         self.update_ui(ctx)?;
 
         while ctx.time.check_update_time(TARGET_FPS) {
-            if ctx.mouse.button_pressed(event::MouseButton::Left) && !self.mouse_on_ui {
-                for coord in ctx
-                    .mouse
-                    .grid_position()
-                    .iter()
-                    .flat_map(|c| c.neighbors(self.dropper_size).into_iter())
-                {
-                    match self.selected_particle_kind {
-                        Some(kind) => self.grid.set(&coord, Particle::new(kind)),
-                        None => self.grid.clear(&coord),
-                    }
-                }
+            if !self.mouse_on_ui {
+                self.update_mouse_down(ctx)?;
             }
 
             self.simulator.init(&mut self.grid);
