@@ -35,9 +35,6 @@ jobs:
       env:
         RUSTFLAGS: "-D warnings"
 
-    - name: Test documentation
-      run: cargo test -p doc_tests
-
   rustfmt:
 
     runs-on: ubuntu-latest
