@@ -113,6 +113,12 @@ impl Simulator {
                     .random_neighbors(vec![(-1, 1), (1, 1)])
                     .find(|c| !grid.get(c).is_solid())
                 {
+                    // try to move the cell we are moving into up instead of simply swapping.
+                    // this is an attempt to prevent water from "climbing" up a diagonal line of
+                    // sand.
+                    if let Some(side) = other.move_by(0, -1).filter(|c| grid.is_empty(c)) {
+                        grid.swap(&other, &side);
+                    }
                     grid.swap(coord, &other);
                 }
             }
