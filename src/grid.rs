@@ -167,7 +167,7 @@ impl<T> Grid<T> {
         let a_value_ptr = ptr::addr_of_mut!(self.get_mut(a).value);
         let b_value_ptr = ptr::addr_of_mut!(self.get_mut(b).value);
         // Can't take two mutable references of the cells array.
-        // No sure is safe, but it seems to be what Vec::swap is doing
+        // Not sure if this is safe, but it seems to be what Vec::swap is doing
         unsafe { ptr::swap(a_value_ptr, b_value_ptr) };
     }
 
