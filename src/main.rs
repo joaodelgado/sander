@@ -49,7 +49,6 @@ struct State {
     gui: Gui,
     grid: Grid<Particle>,
     simulator: Simulator,
-    mouse_down: bool,
     dropper_size: isize,
     selected_particle_kind: Option<ParticleKind>,
     mouse_on_ui: bool,
@@ -63,7 +62,6 @@ impl State {
             gui: Gui::new(ctx),
             grid: Grid::new(GRID_WIDTH, GRID_HEIGHT),
             simulator: Simulator::new(),
-            mouse_down: false,
             dropper_size: 5,
             selected_particle_kind: Some(ParticleKind::Sand),
             mouse_on_ui: false,
@@ -145,32 +143,11 @@ impl event::EventHandler<GameError> for State {
         Ok(())
     }
 
-    fn mouse_button_down_event(
-        &mut self,
-        _ctx: &mut Context,
-        _button: event::MouseButton,
-        _x: f32,
-        _y: f32,
-    ) -> Result<(), GameError> {
-        self.mouse_down = true;
-        Ok(())
-    }
-
-    fn mouse_button_up_event(
-        &mut self,
-        _ctx: &mut Context,
-        _button: event::MouseButton,
-        _x: f32,
-        _y: f32,
-    ) -> Result<(), GameError> {
-        self.mouse_down = false;
-        Ok(())
-    }
-
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         self.update_ui(ctx)?;
+
         while ctx.time.check_update_time(TARGET_FPS) {
-            if self.mouse_down && !self.mouse_on_ui {
+            if ctx.mouse.button_pressed(event::MouseButton::Left) && !self.mouse_on_ui {
                 for coord in ctx
                     .mouse
                     .grid_position()
