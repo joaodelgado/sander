@@ -13,12 +13,16 @@ pub enum ParticleKind {
 }
 
 impl ParticleKind {
-    fn generate_color(&self) -> Color {
+    pub fn base_color(&self) -> Color {
         match self {
-            ParticleKind::Sand => vary_color(Color::YELLOW),
-            ParticleKind::Water => vary_color(Color::BLUE),
-            ParticleKind::Wood => vary_color(Color::from_rgb(112, 74, 2)),
+            ParticleKind::Sand => Color::YELLOW,
+            ParticleKind::Water => Color::BLUE,
+            ParticleKind::Wood => Color::from_rgb(112, 74, 2),
         }
+    }
+
+    fn generate_color(&self) -> Color {
+        vary_color(self.base_color())
     }
 }
 

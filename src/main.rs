@@ -8,7 +8,7 @@ use ggegui::{
 };
 use ggez::{
     conf, event, glam,
-    graphics::{self, DrawParam, FillOptions},
+    graphics::{self, Color, DrawParam, FillOptions, StrokeOptions},
     input::mouse::MouseContext,
     timer,
     winit::event::VirtualKeyCode,
@@ -188,6 +188,7 @@ impl event::EventHandler<GameError> for State {
         canvas.draw(&text, graphics::DrawParam::default());
 
         let mut mb = graphics::MeshBuilder::new();
+        // Draw particles
         for (coord, particle) in self
             .grid
             .iter()
@@ -211,6 +212,18 @@ impl event::EventHandler<GameError> for State {
                 particle.color,
             )?;
         }
+
+        // Draw cursor
+        mb.circle(
+            graphics::DrawMode::Stroke(StrokeOptions::DEFAULT),
+            ctx.mouse.position(),
+            self.dropper_size as f32 * CELL_SIZE as f32,
+            0.1,
+            self.selected_particle_kind
+                .map(|kind| kind.base_color())
+                .unwrap_or_else(|| Color::from_rgb(105, 105, 105)),
+        )?;
+
         let grid_mesh = graphics::Mesh::from_data(ctx, mb.build());
 
         canvas.draw(&grid_mesh, graphics::DrawParam::default());
